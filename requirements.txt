@@ -1,0 +1,6 @@
+tqdm
+glob
+numpy
+Pillow
+imagecorruptions
+torch==1.2.0
