@@ -23,6 +23,38 @@ python make_datasets.py --data_name which_dataset_to_processs --data_dir where_i
 
 ## AdvMix
 ![AdvMix](./figures/AdvMix.jpg)
+### Training
+
+Directory:<br>
+&emsp;├── models<br>
+&emsp;&emsp;├── pytorch<br>
+&emsp;&emsp;&emsp;├── imagenet<br>
+&emsp;&emsp;&emsp;&emsp;├── hrnet_w32-36af842e.pth<br>
+&emsp;&emsp;&emsp;&emsp;├── ...<br>
+&emsp;&emsp;&emsp;├── pose_mpii<br>
+&emsp;&emsp;&emsp;&emsp;├── pose_hrnet_w32_256x256.pth<br>
+&emsp;&emsp;&emsp;&emsp;├── ...<br>
+&emsp;&emsp;&emsp;├── pose_coco<br>
+&emsp;&emsp;&emsp;&emsp;├── pose_resnet_50_256x192.pth<br>
+&emsp;&emsp;&emsp;&emsp;├── ...<br>
+&emsp;├── data<br>
+&emsp;&emsp;├── coco<br>
+&emsp;&emsp;├── mpii<br>
+
+* MPII
+```
+sh scripts/train_mpii.sh 8 Pose
+```
+* COCO
+```
+sh scripts/train_coco.sh 8 Pose
+```
+
+### Evaluation
+```
+sh scripts/test_corruption_cvpr.sh 8 Pose
+```
+
 ### Quantitative results
 
 
@@ -45,5 +77,6 @@ If you find our work useful in your research, please consider citing:
 Our research code is released under the MIT license. See LICENSE for details.
 
 # Acknowledgments
+Thanks for open-source code [HRNet](https://github.com/leoxiaobin/deep-high-resolution-net.pytorch/).
 
 
