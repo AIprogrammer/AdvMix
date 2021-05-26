@@ -16,7 +16,7 @@ __pycache__/
 /models/*
 /output/*
 /output_robustness/*
-
+/log/*
 # debug
 /tools/debug.sh
 /tools/debug_test.sh
