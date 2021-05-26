@@ -18,6 +18,6 @@ __pycache__/
 /output_robustness/*
 /log/*
 # debug
-/tools/debug.sh
-/tools/debug_test.sh
+/scripts/debug.sh
+/scripts/debug_test.sh
 /experiments/debug.yaml
