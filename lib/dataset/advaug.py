@@ -19,7 +19,8 @@ class ImageNetPolicy(object):
         >>>     ImageNetPolicy(),
         >>>     transforms.ToTensor()])
     """
-    # https://www.osgeo.cn/pillow/reference/ImageOps.html#PIL.ImageOps.posterize
+    # To avoid over-fitting to the test set of held-out corruptions, we manually exclude some operations, such as contrast, color, brightness, and sharpness
+    # sub-policies (as they appear in the benchmark).
     def __init__(self, fillcolor=(128, 128, 128)):
         self.policies = [
             # SubPolicy(0.4, "posterize", 8, 0.6, "rotate", 9, fillcolor),
@@ -38,7 +39,7 @@ class ImageNetPolicy(object):
             # SubPolicy(0.4, "rotate", 9, 0.6, "equalize", 2, fillcolor),
             SubPolicy(0.0, "equalize", 7, 0.8, "equalize", 8, fillcolor),
             SubPolicy(0.6, "invert", 4, 1.0, "equalize", 8, fillcolor),
-            # SubPolicy(0.6, "color", 4, 1.0, "contrast", 8, fillcolor), ＃ ？?
+            # SubPolicy(0.6, "color", 4, 1.0, "contrast", 8, fillcolor),
 
             # SubPolicy(0.8, "rotate", 8, 1.0, "color", 2, fillcolor),
             SubPolicy(0.8, "color", 8, 0.8, "solarize", 7, fillcolor),
@@ -49,7 +50,7 @@ class ImageNetPolicy(object):
             SubPolicy(0.4, "equalize", 7, 0.2, "solarize", 4, fillcolor),
             SubPolicy(0.6, "solarize", 5, 0.6, "autocontrast", 5, fillcolor),
             SubPolicy(0.6, "invert", 4, 1.0, "equalize", 8, fillcolor),
-            # SubPolicy(0.6, "color", 4, 1.0, "contrast", 8, fillcolor),　#　?？
+            # SubPolicy(0.6, "color", 4, 1.0, "contrast", 8, fillcolor),
             SubPolicy(0.8, "equalize", 8, 0.6, "equalize", 3, fillcolor)
         ]
 
@@ -84,7 +85,6 @@ class SubPolicy(object):
             "invert": [0] * 10
         }
 
-        # from https://stackoverflow.com/questions/5252170/specify-image-filling-color-when-rotating-in-python-with-pil-and-setting-expand
         def rotate_with_fill(img, magnitude):
             rot = img.convert("RGBA").rotate(magnitude)
             return Image.composite(rot, Image.new("RGBA", rot.size, (128,) * 4), rot).convert(img.mode)
@@ -146,8 +146,6 @@ def grid_aug(cfg, img, joints, joints_vis, use_h, use_w, rotate = 1, offset=Fals
     hh = int(1.5*h)
     ww = int(1.5*w)
     d = np.random.randint(d1, d2)
-    #d = self.d
-#        self.l = int(d*self.ratio+0.5)
     if ratio == 1:
         l = np.random.randint(1, d)
     else:
@@ -170,7 +168,6 @@ def grid_aug(cfg, img, joints, joints_vis, use_h, use_w, rotate = 1, offset=Fals
     mask = Image.fromarray(np.uint8(mask))
     mask = mask.rotate(r)
     mask = np.asarray(mask)
-#        mask = 1*(np.random.randint(0,3,[hh,ww])>0)
     mask = mask[(hh-h)//2:(hh-h)//2+h, (ww-w)//2:(ww-w)//2+w]
 
     mask = torch.from_numpy(mask).float()
@@ -188,7 +185,6 @@ def grid_aug(cfg, img, joints, joints_vis, use_h, use_w, rotate = 1, offset=Fals
     
     for joint_id in range(cfg.joints_num):
         joint = joints[joint_id][:2]
-        # print('in transform', mask.shape, tmp_mask.shape, joint.shape)
         tmp_x = min(int(joint[0]), tmp_mask.shape[1] - 1)
         tmp_x = max(tmp_x, 0)
         tmp_y = min(int(joint[1]), tmp_mask.shape[0] - 1)
@@ -201,65 +197,12 @@ def grid_aug(cfg, img, joints, joints_vis, use_h, use_w, rotate = 1, offset=Fals
     return img, joints, joints_vis,db_rec
 
 
-class VanillaCombine(object):
-    def __init__(self, to_float32=False):
-        self.to_float32 = to_float32
-        self.autoaug = ImageNetPolicy(fillcolor=(128, 128, 128))
-    def __call__(self, inputs, transform):
-        db_rec, get_clean, cfg = inputs
-        if not get_clean and random.random() < cfg.combine_prob:
-            # auto_aug
-            if db_rec['dataset'] != 'style' or not cfg.sp_style:
-                db_rec['img_label'] = 1
-                data_numpy = db_rec['data_numpy']
-                tmp_img = Image.fromarray(data_numpy.astype(np.uint8))
-                data_numpy = self.autoaug(tmp_img)
-                db_rec['data_numpy'] = np.array(data_numpy)
-            
-            db_rec['data_numpy'] = transform(db_rec['data_numpy'])
-
-            # GridMask
-            if db_rec['dataset'] != 'style' or not cfg.sp_style:
-                rotate = 1
-                offset=False 
-                ratio = 0.5
-                mode=1
-                prob = 0.7
-                self.st_prob = prob
-
-                data_numpy = db_rec['data_numpy']
-                joints = db_rec['joints_3d']
-                joints_vis = db_rec['joints_3d_vis']
-
-                data_numpy, joints, joints_vis, db_rec = grid_aug(cfg, data_numpy, joints, joints_vis, True, True, rotate, offset, ratio, mode, prob, db_rec)
-                
-                db_rec['data_numpy'] = data_numpy
-                db_rec['joints_3d'] = joints
-                db_rec['joints_3d_vis'] = joints_vis
-            
-            # perturb
-            if random.random() < cfg.perturb_joint:
-                joints = db_rec['joints_3d']
-                perturb = np.random.randn(joints.shape[0], joints.shape[1] - 1) * cfg.perturb_range
-                joints[:,:2] = joints[:,:2] + perturb
-                db_rec['joints_3d'] = joints
-        
-        else:
-            db_rec['data_numpy'] = transform(db_rec['data_numpy'])
-
-        return db_rec, cfg
-
-    def set_prob(self, epoch, max_epoch):
-        self.prob = self.st_prob * epoch / max_epoch
-
-
 class MixCombine(object):
     def __init__(self, to_float32=False):
         self.to_float32 = to_float32
         self.autoaug = ImageNetPolicy(fillcolor=(128, 128, 128))
     def __call__(self, inputs, transform):
         db_rec, get_clean, cfg = inputs
-        # get_clean != 'clean' and random.random() < combine_prob:
         if get_clean != 'clean':
             if get_clean == 'autoaug':
                 # auto_aug wo_normalize

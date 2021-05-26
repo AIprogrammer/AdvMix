@@ -26,20 +26,6 @@ class JointsMSELoss(nn.Module):
         batch_size = output.size(0)
         num_joints = output.size(1)
 
-        # try:
-        #     if isinstance(output, list):
-        #         output = torch.Tensor(output).cuda(non_blocking=True)
-            
-        #     if isinstance(target, list):
-        #         target = torch.Tensor(target).cuda(non_blocking=True)
-
-        # except:
-        #     print('='*20)
-        #     print(type(output), type(target), output.shape, target.shape)
-        #     print(output)
-        #     print('='*20)
-        #     print(target)
-
         def tofloat(x):
             if x.dtype == torch.float64 or x.dtype == torch.double:
                 x = x.float()
@@ -59,8 +45,6 @@ class JointsMSELoss(nn.Module):
         
         loss = 0
 
-        # print(output.dtype, target.dtype, target_weight.dtype, heatmaps_pred.dtype, heatmaps_gt.dtype, )
-        # []
         for idx in range(num_joints):
             if not isinstance(heatmaps_pred, tuple) and heatmaps_pred.shape[2] == 2:
                 heatmap_pred = heatmaps_pred[:,idx].squeeze()

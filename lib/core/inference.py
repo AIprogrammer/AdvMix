@@ -16,7 +16,7 @@ from utils.transforms import transform_preds
 import torch.nn as nn
 import torch
 
-import dsntnn
+
 
 
 def get_max_preds(batch_heatmaps):
@@ -56,9 +56,6 @@ def get_final_preds(config, args, batch_heatmaps, center, scale, cal_hm_coord=Tr
     # default: calculate coord from heatmap
     if cal_hm_coord:
         coords, maxvals = get_max_preds(batch_heatmaps)
-        # use dsntnn as post process
-        if args.dsntnn or args.fc_coord:
-            coords = dsntnn.dsnt(dsntnn.flat_softmax(batch_heatmaps))
     else:
         # while using dsntnn or fc_coord
         coords = coord

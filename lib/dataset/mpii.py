@@ -91,10 +91,9 @@ class MPIIDataset(JointsDataset):
 
             image_dir = 'images.zip@' if self.data_format == 'zip' else 'images'
 
-
             if self.test_robust and self.corruption_type != 'clean':
                 image_path = os.path.join(
-                    self.root_c, 'images', image_name)
+                    self.root_c, image_name)
             else:
                 image_path = os.path.join(self.root, image_dir, image_name)
             

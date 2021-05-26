@@ -11,4 +11,4 @@ glob
 numpy
 Pillow
 imagecorruptions
-torch==1.2.0
+torch>=1.0.0

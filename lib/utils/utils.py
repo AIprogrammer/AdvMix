@@ -147,7 +147,6 @@ def get_model_summary(model, *input_tensors, item_length=26, verbose=False, retu
                     mac_module += param_.view(-1).size(0)
 
             flops = "Not Available"
-            # 这种计算方式的定义是将一次乘法+加法 定义为一个FLOPs
             if class_name.find("Conv2d") != -1 and hasattr(module, "weight"):
                 flops = (
                     torch.prod(
@@ -177,8 +176,6 @@ def get_model_summary(model, *input_tensors, item_length=26, verbose=False, retu
                     multiply_adds=flops,
                     memory_access_cost=mac)
             )
-        # 但凡是属于最小的module，那么就计算hook函数里面的内容，并返回mac，flops，参数量
-        # 因此使用multi loss 时候， 实际计算值与计算图有关，而不是与init函数里面定义的module有关
         if not isinstance(module, nn.ModuleList) \
            and not isinstance(module, nn.Sequential) \
            and module != model:

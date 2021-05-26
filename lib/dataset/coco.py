@@ -19,8 +19,8 @@ import json_tricks as json
 import numpy as np
 
 from dataset.JointsDataset import JointsDataset
-from nms.nms import oks_nms
-from nms.nms import soft_oks_nms
+# from nms.nms import oks_nms
+# from nms.nms import soft_oks_nms
 
 
 logger = logging.getLogger(__name__)
@@ -248,23 +248,10 @@ class COCODataset(JointsDataset):
         x, y, w, h = box[:4]
         return self._xywh2cs(x, y, w, h)
     
-    # enlarge the bbox
     def _xywh2cs(self, x, y, w, h):
         center = np.zeros((2), dtype=np.float32)
         center[0] = x + w * 0.5
         center[1] = y + h * 0.5
-
-        ### extend the bbox to the 4:3 ratio, and then crop the person bbox from x, and then resize the image to certain size ( 256 * 192 )
-        ### scale = [w/std, h/std]
-        ### scale * 1.25
-        # import random
-        # dice1 = random.random()
-
-        # if self.cfg.is_train and dice1 > 0.7:
-        #     dice_x = random.random()
-        #     center[0] = center[0] + (dice_x - 0.5) * w * 0.4
-        #     dice_y = random.random()
-        #     center[1] = center[1] + (dice_y - 0.5) * h * 0.4
 
         if w > self.aspect_ratio * h:
             h = w * 1.0 / self.aspect_ratio
@@ -296,7 +283,7 @@ class COCODataset(JointsDataset):
         ### testing the robustness
         if self.test_robust and self.corruption_type != 'clean':
             image_path = os.path.join(
-                self.root_c, 'images/val2017_ascoco', file_name)
+                self.root_c, file_name)
         else:
             if 'stylize_image' in self.root:
                 image_path = os.path.join(
@@ -306,7 +293,6 @@ class COCODataset(JointsDataset):
                     self.root, data_name, file_name)
         return image_path
 
-    ### length of dataset
     def _load_coco_person_detection_results(self):
         all_boxes = None
         with open(self.bbox_file, 'r') as f:
@@ -438,18 +424,7 @@ class COCODataset(JointsDataset):
                 oks_nmsed_kpts.append(img_kpts) # why
             else:
                 oks_nmsed_kpts.append([img_kpts[_keep] for _keep in keep])
-        '''
-        dict{
-            'img_ids': [dict1{
-                'keypoint':,
-                'bbox':,
-                'score':,
-                'scale':,
-            },dict2, dict....]
-
-        }
-        '''
-
+ 
         self._write_coco_keypoint_results(
             oks_nmsed_kpts, res_file)
         if 'test' not in self.image_set:

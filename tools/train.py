@@ -29,7 +29,7 @@ from _init_parse import parse_args
 from config import cfg
 from config import update_config
 from core.loss import JointsMSELoss
-from core.function import train, train_adv, train_adv_kd
+from core.function import train, train_advmix
 from core.function import validate
 from utils.utils import get_optimizer
 from utils.utils import save_checkpoint
@@ -59,16 +59,14 @@ def main():
     torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
 
     model = eval('models.'+cfg.MODEL.NAME+'.get_pose_net')(
-        cfg, args, is_train=True
+        cfg, is_train=True
     )
 
-    if args.kd:
-        model_teacher = copy.deepcopy(model)
-
     if args.advmix:
-        print('>>>Traing adversarial')
+        model_teacher = copy.deepcopy(model)
+        print('=> Traing adversarially.')
         model_G = models.Unet_generator.UnetGenerator(args.gen_input_chn,3,args.downsamples)
-        print("UNet generator : {} input chanenels; {} downsample times".format(args.gen_input_chn, args.downsamples))
+        print("=> UNet generator : {} input chanenels; {} downsample times".format(args.gen_input_chn, args.downsamples))
         model_G = torch.nn.DataParallel(model_G, device_ids=cfg.GPUS).cuda()
 
     # copy model file
@@ -109,20 +107,12 @@ def main():
 
     model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
 
-    if args.kd:
+    if args.advmix:
         model_teacher = torch.nn.DataParallel(model_teacher, device_ids=cfg.GPUS).cuda()
 
-
-    # define loss function (criterion) and optimizer
-
-    if args.fc_coord:
-        criterion = JointsMSELoss(
-            use_target_weight=cfg.LOSS.USE_TARGET_WEIGHT
-        ).cuda()
-    else:
-        criterion = JointsMSELoss(
-            use_target_weight=cfg.LOSS.USE_TARGET_WEIGHT
-        ).cuda()
+    criterion = JointsMSELoss(
+        use_target_weight=cfg.LOSS.USE_TARGET_WEIGHT
+    ).cuda()
 
     # Data loading code
     normalize = transforms.Normalize(
@@ -221,7 +211,7 @@ def main():
         model_state.update(share_state)
         model.load_state_dict(model_state)
 
-    if os.path.exists(args.load_from_D) and args.kd:
+    if os.path.exists(args.load_from_D) and args.advmix:
         logger.info('=> Build teacher model by loading pretrained model: {}'.format(args.load_from_D))
         pretrained_dict = torch.load(args.load_from_D)
         pretrained_dict = {'module.' + k:v for k,v in pretrained_dict.items()}
@@ -259,7 +249,7 @@ def main():
         logger.info("=> loaded checkpoint '{}' (epoch {})".format(
             checkpoint_file, checkpoint['epoch']))
     
-    if cfg.AUTO_RESUME and os.path.exists(checkpoint_file) and args.kd:
+    if cfg.AUTO_RESUME and os.path.exists(checkpoint_file) and args.advmix:
         logger.info("=> loading checkpoint teacher model'{}'".format(checkpoint_file))
         checkpoint = torch.load(checkpoint_file)
         begin_epoch = checkpoint['epoch']
@@ -302,19 +292,15 @@ def main():
         if args.advmix:
             lr_scheduler_G.step()
         
-        print('>>>the learning rate is: ', optimizer.param_groups[0]['lr'], optimizer.param_groups[0]['lr'])
+        print('=> The learning rate is: ', optimizer.param_groups[0]['lr'], optimizer_G.param_groups[0]['lr'])
         
         if args.advmix:
-            if args.kd:
-                train_adv_kd(cfg, args, train_loader, [model, model_G, model_teacher], criterion, [optimizer, optimizer_G], epoch,
-                    final_output_dir, tb_log_dir, writer_dict, args.sparse_bn, args.weight_decay)
-            else:
-                train_adv(cfg, args, train_loader, [model, model_G], criterion, [optimizer, optimizer_G], epoch,
-                    final_output_dir, tb_log_dir, writer_dict, args.sparse_bn, args.weight_decay)
+            train_advmix(cfg, args, train_loader, [model, model_G, model_teacher], criterion, [optimizer, optimizer_G], epoch,
+                final_output_dir, tb_log_dir, writer_dict)
         else:
-            print('normal training ...')
+            print('=> Normal training ...')
             train(cfg, args, train_loader, model, criterion, optimizer, epoch,
-                final_output_dir, tb_log_dir, writer_dict, args.sparse_bn, args.weight_decay)
+                final_output_dir, tb_log_dir, writer_dict)
         
         name_values, perf_indicator = validate(
             cfg, args, valid_loader, valid_dataset, model, criterion,

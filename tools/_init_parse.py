@@ -44,44 +44,6 @@ def parse_args():
                         type=str,
                         default='')
 
-    ### different regression strategy
-    parser.add_argument('--dsntnn',
-                        help='regression of coordination',
-                        default=False,
-                        action='store_true')
-
-    parser.add_argument('--reg_coord',
-                        help='regression of coordination',
-                        default=False,
-                        action='store_true')
-
-    parser.add_argument('--fc_coord',
-                        help='linear to regression',
-                        default=False,
-                        action='store_true')
-
-    parser.add_argument('--softargmax',
-                    help='differenite softargmax',
-                    default=False,
-                    action='store_true')
-
-    parser.add_argument('--lambda_w',
-                        help='weights of loss',
-                        default=[2/2,2/2],
-                        type=list)
-
-    parser.add_argument('--return_conf',
-                        help='regression of coordination',
-                        default=False,
-                        action='store_true')
-
-    # validate debug
-    
-    parser.add_argument('--validate_debug',
-                        help='run validation first to debug',
-                        default=False,
-                        action='store_true')
-
     ### test robustness
     parser.add_argument('--test_robust',
                         help='normal test or test robustness',
@@ -97,29 +59,6 @@ def parse_args():
                     help='severity of corruption',
                     type=int,
                     default=0)
-
-                
-    ### pruning
-    parser.add_argument('--pruneratio', type=float, default=0.4,
-                        help='nin_gc:0.4')
-    parser.add_argument('--layers', type=int, default=9,
-                        help='layers (default: 9)')
-
-    parser.add_argument('--continue_train',
-                        help='continue pruning',
-                        default=False,
-                        action='store_true')
-
-    parser.add_argument('--sparse_bn',
-                    help='differenite softargmax',
-                    default=False,
-                    action='store_true')
-
-    parser.add_argument('--weight_decay', type=float, default=0)
-    
-    parser.add_argument('--pruner', default='SlimmingPruner', type=str,
-                        choices=['AutoSlimPruner', 'SlimmingPruner', 'l1normPruner'],
-                        help='architecture to use')
 
     # INPUT TYPE
     parser.add_argument('--dataset_root',
@@ -141,15 +80,6 @@ def parse_args():
                         help='data directory',
                         type=str,
                         default='res')
-
-    parser.add_argument('--part',
-                        help='choose the part',
-                        type=int,
-                        default=0)
-    parser.add_argument('--total_part',
-                        help='partition the whole dataset',
-                        type=int,
-                        default=20)
 
     # test & train
     parser.add_argument('--exp_id',
@@ -204,10 +134,6 @@ def parse_args():
                         default=6)
     
     # knowledge distillation
-    parser.add_argument('--kd',
-                    default=False,
-                    action='store_true')
-
     parser.add_argument('--kd_mseloss',
                     default=False,
                     action='store_true')

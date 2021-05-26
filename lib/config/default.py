@@ -168,9 +168,9 @@ def update_config(cfg, args):
     ### define root_c while coco or mpii
     
     if cfg.DATASET.DATASET == 'coco':
-        cfg.DATASET.ROOT_C = 'data/corrupted_data/coco'
+        cfg.DATASET.ROOT_C = 'data/coco-C'
     else:
-        cfg.DATASET.ROOT_C = 'data/corrupted_data/mpii'
+        cfg.DATASET.ROOT_C = 'data/mpii-C'
 
     ### corruptions data root
     cfg.DATASET.ROOT_C = os.path.join(
@@ -185,11 +185,6 @@ def update_config(cfg, args):
         cfg.TEST.MODEL_FILE = os.path.join(
             cfg.DATA_DIR, cfg.TEST.MODEL_FILE
         )
-    
-    ### slurm change num GPUS
-    # cfg.GPUS = list(range(4))
-    # cfg.WORKERS = 16
-    # cfg.TEST.BATCH_SIZE_PER_GPU = 128
     
     cfg.freeze()
 

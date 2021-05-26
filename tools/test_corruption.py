@@ -47,7 +47,7 @@ def val_model_init():
     torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
 
     model = eval('models.'+cfg.MODEL.NAME+'.get_pose_net')(
-        cfg, args, is_train=False
+        cfg, is_train=False
     )
 
     if cfg.TEST.MODEL_FILE:
@@ -65,7 +65,9 @@ def val(distortion_name, severity, model):
 
     update_config(cfg, args)
 
+
     exp_id = args.exp_id
+    which_dataset = cfg.DATASET.DATASET
 
     logger, final_output_dir, tb_log_dir = create_logger(args, 
         cfg, args.cfg, 'valid')
@@ -122,7 +124,7 @@ def val(distortion_name, severity, model):
         record.write(keys + ' = ' + str(values) + '\t')
     record.write('\n')
     record.close()
-    return name_values, perf_indicator, final_output_dir, exp_id, overall_dir
+    return name_values, perf_indicator, final_output_dir, exp_id, which_dataset, overall_dir
 
 def get_corrpution_results():
     distortions = [
@@ -132,82 +134,26 @@ def get_corrpution_results():
         'contrast', 'elastic_transform', 'pixelate', 'jpeg_compression',
         'speckle_noise', 'gaussian_blur', 'spatter', 'saturate'
     ]
-
+    res = []
     model = val_model_init()
-    name_values, perf_indicator, final_output_dir, exp_id, overall_dir = val('clean', 0, model)
-    
-    for distortion_name in distortions:
+    name_values, perf_indicator, final_output_dir, exp_id, which_dataset, overall_dir = val('clean', 0, model)
+    res.append(perf_indicator)
+
+    for distortion_name in distortions[:15]:
         for severity in range(5):
-            name_values, perf_indicator, final_output_dir, exp_id, overall_dir = val(distortion_name, severity, model)
-
-    get_result(overall_dir, distortions, exp_id)
-
-def get_result(path, distortions, exp_id, coco=True):
-    with open(path, 'r') as f:
-        mAP = dict([(k,[]) for k in distortions])
-        record = f.readlines()
-        for line in record[:96]:
-            corruption_type = line.split('\t')[0][:-3]
-            print(line, corruption_type)
-            if coco:
-                ap = float(line.split('\t')[1][5:])
-            else:
-                ap = float(line.split('\t')[-3][7:])
-            
-            if corruption_type == 'clean':
-                clean_ap = ap
-                print('>>>> clean mAP is', clean_ap)
-            else:
-                mAP[corruption_type].append(ap)
+            name_values, perf_indicator, final_output_dir, exp_id, which_dataset, overall_dir = val(distortion_name, severity, model)
+            res.append(perf_indicator)
     
-    mean_c_ap = {k:sum(v) / 5 for k,v in mAP.items()}
+    if which_dataset == 'mpii':
+        get_final_results_mpii(res, distortions, final_output_dir, exp_id, mode='td')
+    else:
+        mode = 'bu' if cfg.model.type == 'BottomUp' else 'td'
+        get_final_results(res, distortions, final_output_dir, exp_id, mode=mode)
 
-    ### in case zero
-    non_zero_ap = {k:v for k, v in mean_c_ap.items() if v != 0}
-    all_mean_ap = sum(non_zero_ap.values()) / len(non_zero_ap)
-
-    ### show result 15 corruptions
-    part_mean_ap = {k:v for k, v in non_zero_ap.items() if k in distortions[:15]}
-    part_mean_ap = sum(part_mean_ap.values()) / len(part_mean_ap)
-
+def get_final_results(mAP, distortions, final_output_dir, exp_id,mode='td'):
     dic = {}
-    dic['clean_mAP'] = [clean_ap]
-
-    dic['mean_corrupted_AP'] = [part_mean_ap]
-    dic['rAP'] = dic['mean_corrupted_AP'][0] / dic['clean_mAP'][0]
-
-    dic.update(non_zero_ap)
-
-    dataframe = pd.DataFrame(dic)
-    columns = ['clean_mAP', 'mean_corrupted_AP', 'rAP'] + distortions
-
-    dataframe.to_csv(os.path.dirname(path) + '/' + exp_id + ".csv", index=False,sep=',', columns=columns)
-
-    print(part_mean_ap, part_mean_ap)
-    return mean_c_ap, all_mean_ap, part_mean_ap
-
-
-def get_final_results(distortions, final_output_dir, exp_id,mode='td'):
-    from collections import defaultdict
-    import pandas as pd
-    if mode == 'td':
-        keyword = '| TopDown |'
-    elif mode == 'bu':
-        keyword = '| BottomUp |'
-
-    dic = {}
-    log_dir = final_output_dir + '/' + exp_id + '.log'
-    lines = [_.strip() for _ in open(log_dir, 'r').readlines()]
-    mAP = []
-    for line in lines:
-        if keyword in line:
-            mAP.append(float(line.split(keyword  + ' ')[1][:5]))
-    
-    # print(log_dir, len(lines), mode)
     assert len(mAP) == 96, 'Result length'
-    
     dic['clean_mAP'] = [mAP.pop(0)]
-
     print(mAP)
 
     all_tmp = 0
@@ -226,28 +172,10 @@ def get_final_results(distortions, final_output_dir, exp_id,mode='td'):
     columns = ['clean_mAP', 'mean_corrupted_AP', 'rAP'] + distortions 
     dataframe.to_csv(final_output_dir + '/' + exp_id + ".csv", index=False,sep=',', columns=columns)
 
-
-def get_final_results_mpii(distortions, final_output_dir, exp_id,mode='td'):
-    from collections import defaultdict
-    import pandas as pd
-    if mode == 'td':
-        keyword = '| TopDown |'
-    elif mode == 'bu':
-        keyword = '| BottomUp |'
-
+def get_final_results_mpii(mean, distortions, final_output_dir, exp_id,mode='td'):
     dic = {}
-    log_dir = final_output_dir + '/' + exp_id + '.log'
-    lines = [_.strip() for _ in open(log_dir, 'r').readlines()]
-    mean = []
-    for line in lines:
-        if keyword in line:
-            mean.append(float(line.split('| ')[9].strip()))
-    
-    # print(log_dir, len(lines), mode)
     assert len(mean) == 96, 'Result length'
-    
     dic['clean_mean'] = [round(mean.pop(0),3)]
-
     print(mean)
 
     all_tmp = 0

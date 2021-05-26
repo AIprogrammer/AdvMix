@@ -20,7 +20,7 @@ from torch.utils.data import Dataset
 from utils.transforms import get_affine_transform
 from utils.transforms import affine_transform
 from utils.transforms import fliplr_joints
-from .advaug import VanillaCombine, MixCombine
+from .advaug import MixCombine
 from imagecorruptions import corrupt, get_corruption_names
 
 
@@ -62,8 +62,6 @@ class JointsDataset(Dataset):
         self.joints_weight = 1
 
         self.transform = transform
-
-        # self.get_varaug = VanillaCombine()
         self.get_varaug = MixCombine()
         self.db = []
 

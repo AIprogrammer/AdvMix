@@ -40,7 +40,6 @@ def dist_acc(dists, thr=0.5):
 
 def accuracy(outputs, target, hm_type='gaussian', thr=0.5, args=None, cfg=None):
     '''
-    [coord, hm]
     Calculate accuracy according to PCK,
     but uses ground truth heatmap rather than x,y locations
     First value to be returned is average accuracy across 'idxs',
@@ -71,16 +70,6 @@ def accuracy(outputs, target, hm_type='gaussian', thr=0.5, args=None, cfg=None):
         target, _ = get_max_preds(target)
         h = outputs.shape[2] # y
         w = outputs.shape[3] # x
-
-    elif (args.dsntnn and args.reg_coord) or args.fc_coord: # directly output the final output
-        assert outputs[0].ndim == 3, 'the output coord must be 3 dims'
-        # norm
-        pred = outputs[0]
-        pred = inv_coord_norm(pred, cfg, args).clone().detach().cpu().numpy()
-        # inv norm
-        target = target[0]
-        h = cfg.MODEL.IMAGE_SIZE[1]
-        w = cfg.MODEL.IMAGE_SIZE[0]
 
     else: # output the correspinding coord of small heatmaps
         assert outputs[0].ndim == 3, 'the output coord must be 3 dims'

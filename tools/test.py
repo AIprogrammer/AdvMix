@@ -1,105 +1,196 @@
-# ------------------------------------------------------------------------------
-# pose.pytorch
-# Copyright (c) 2018-present Microsoft
-# Licensed under The Apache-2.0 License [see LICENSE for details]
-# Written by Bin Xiao (Bin.Xiao@microsoft.com)
-# ------------------------------------------------------------------------------
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import argparse
 import os
-import pprint
-
 import torch
+import argparse
+
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
-import torchvision.transforms as transforms
 
-import _init_paths
-from config import cfg
-from config import update_config
-from core.loss import JointsMSELoss
-from core.function import validate
-from utils.utils import create_logger
-from utils.utils import get_model_summary
+import star
+from star.config.config import parse_args, merge_cfg
+from star.models import build_detector
+from star.data import build_dataset
+from star.utils import create_logger
 
-import dataset
-import models
-from _init_parse import parse_args
+from star.core.loss import build_loss
+from star.core.function import save_checkpoint
+from star.core.function import get_optimizer
+from star.core.function import build_dataloader, build_trainer, build_tester
+import shutil
+from testmap import create_pifpaf
+from collections import defaultdict
+import pandas as pd
 
+
+def do_python_keypoint_eval(res_file, res_folder):
+
+    nullwrite = NullWriter()
+    oldstdout = sys.stdout
+    sys.stdout = nullwrite
+
+    coco_dt = self.coco.loadRes(res_file)
+    coco_eval = COCOeval(self.coco, coco_dt, 'keypoints')
+    coco_eval.params.useSegm = None
+    coco_eval.evaluate()
+    coco_eval.accumulate()
+    coco_eval.summarize()
+
+    sys.stdout = oldstdout
+
+
+    stats_names = ['AP', 'Ap .5', 'AP .75', 'AP (M)', 'AP (L)', 'AR', 'AR .5', 'AR .75', 'AR (M)', 'AR (L)']
+
+    info_str = []
+    for ind, name in enumerate(stats_names):
+        info_str.append((name, coco_eval.stats[ind]))
+
+    return info_str
 
 
 def main():
     args = parse_args()
-    update_config(cfg, args)
+    cfg = merge_cfg(args)
 
-    logger, final_output_dir, tb_log_dir = create_logger(
-        args, cfg, args.cfg, 'valid')
+    logger, final_output_dir, tb_log_dir, writer_dict = create_logger(cfg, 'train')
 
-    logger.info(pprint.pformat(args))
-    logger.info(cfg)
+    model, begin_epoch, best_perf, optimizer,_ = build_detector(cfg, train_cfg=cfg.train_cfg, test_cfg=cfg.test_cfg)
 
-    # cudnn related setting
-    cudnn.benchmark = cfg.CUDNN.BENCHMARK
-    torch.backends.cudnn.deterministic = cfg.CUDNN.DETERMINISTIC
-    torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
+    criterion = build_loss(cfg)
 
-    model = eval('models.'+cfg.MODEL.NAME+'.get_pose_net')(
-        cfg, args, is_train=False
-    )
+    valid_annotations = cfg.data.data_cfg.valid_annotations
+    valid_image_path = cfg.data.data_cfg.valid_image_path
 
-    dump_input = torch.rand(
-        (1, 3, cfg.MODEL.IMAGE_SIZE[1], cfg.MODEL.IMAGE_SIZE[0])
-    )
-    logger.info(get_model_summary(model, dump_input))
+    if not type(valid_annotations) == list:
+        valid_annotations = [valid_annotations]
+        valid_image_path = [valid_image_path]
 
-    if cfg.TEST.MODEL_FILE:
-        logger.info('=> loading model from {}'.format(cfg.TEST.MODEL_FILE))
-        model.load_state_dict(torch.load(cfg.TEST.MODEL_FILE), strict=True)
+    res = []
+    for i in range(len(valid_annotations)):        
+        if args.use_det_bbox:
+            cfg.test_cfg.use_gt_bbox = False
+            print('===>> Test using det bbox')
+        
+        cfg.data.data_cfg.valid_image_path = valid_image_path[i]
+        _, _, valid_loader, _, valid_dataset = build_dataloader(cfg, is_train=False) # return both train dataloader and valid dataloader
+        cfg.test_cfg.tester = True
+        tester = build_tester(cfg)
+
+        perf_indicator = tester(cfg, valid_loader, valid_dataset, model, criterion, -1,
+                final_output_dir, tb_log_dir, writer_dict)
+        res.append(perf_indicator)
+
+        if args.test_robustness:
+            print('====> test robustness ...', flush=True)
+            distortions = [
+                'gaussian_noise', 'shot_noise', 'impulse_noise',
+                'defocus_blur', 'glass_blur', 'motion_blur', 'zoom_blur',
+                'snow', 'frost', 'fog', 'brightness',
+                'contrast', 'elastic_transform', 'pixelate', 'jpeg_compression',
+                'speckle_noise', 'gaussian_blur', 'spatter', 'saturate'
+            ]
+
+            which_dataset = cfg.data.data_cfg.valid_image_path.split('/')[1]
+            for distortion_name in distortions:
+                ### 5 severity in each distortions
+                for severity in range(5):
+                    if which_dataset == 'coco':
+                        base_path = 'dataset/corrupted_data/coco/images/val2017_ascoco/{}/{}'.format(distortion_name, severity)
+                    elif which_dataset == 'ochuman':
+                        base_path = 'dataset/corrupted_data/ochuman/images/{}/{}'.format(distortion_name, severity)
+                        # base_path = 'dataset/ochuman/images'
+                    elif which_dataset == 'mpii':
+                        base_path = 'dataset/corrupted_data/mpii/images/{}/{}'.format(distortion_name, severity)
+                       
+                    cfg.data.data_cfg.valid_image_path = base_path
+                    _, _, valid_loader, _, valid_dataset = build_dataloader(cfg, is_train=False)
+                    cfg.test_cfg.tester = True
+                    tester = build_tester(cfg)
+                    sepa_output_dir = final_output_dir + '/' + distortion_name + '/' + str(severity)
+                    print(sepa_output_dir)
+                    perf_indicator = tester(cfg, valid_loader, valid_dataset, model, criterion, -1,
+                            sepa_output_dir, tb_log_dir, writer_dict)
+                    res.append(perf_indicator)
+
+    if which_dataset == 'mpii':
+        get_final_results_mpii(res, distortions, final_output_dir, args.exp_id, mode='td')
     else:
-        model_state_file = os.path.join(
-            final_output_dir, 'final_state.pth'
-        )
-        logger.info('=> loading model from {}'.format(model_state_file))
-        model.load_state_dict(torch.load(model_state_file))
+        mode = 'bu' if cfg.model.type == 'BottomUp' else 'td'
+        get_final_results(res, distortions, final_output_dir, args.exp_id, mode=mode)
 
-    model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
+def get_final_results(mAP, distortions, final_output_dir, exp_id,mode='td'):
+    # if mode == 'td':
+    #     keyword = '| TopDown |'
+    # elif mode == 'bu':
+    #     keyword = '| BottomUp |'
 
-    # define loss function (criterion) and optimizer
-    criterion = JointsMSELoss(
-        use_target_weight=cfg.LOSS.USE_TARGET_WEIGHT
-    ).cuda()
-
-    # Data loading code
-    normalize = transforms.Normalize(
-        mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-    )
+    dic = {}
+    # log_dir = final_output_dir + '/' + exp_id + '.log'
+    # lines = [_.strip() for _ in open(log_dir, 'r').readlines()]
+    # mAP = []
+    # for line in lines:
+    #     if keyword in line:
+    #         mAP.append(float(line.split(keyword  + ' ')[1][:5]))
     
-    valid_dataset = eval('dataset.'+cfg.DATASET.DATASET)(
-        cfg, cfg.DATASET.ROOT, cfg.DATASET.TEST_SET, False,
-        transforms.Compose([
-            transforms.ToTensor(),
-            normalize,
-        ])
-    )
+    assert len(mAP) == 96, 'Result length'
     
-    valid_loader = torch.utils.data.DataLoader(
-        valid_dataset,
-        batch_size=cfg.TEST.BATCH_SIZE_PER_GPU*len(cfg.GPUS),
-        shuffle=False,
-        num_workers=cfg.WORKERS,
-        pin_memory=True
-    )
+    dic['clean_mAP'] = [mAP.pop(0)]
 
-    # evaluate on validation set
-    validate(cfg, args, valid_loader, valid_dataset, model, criterion,
-             final_output_dir, tb_log_dir)
+    print(mAP)
+
+    all_tmp = 0
+    for dis in distortions:
+        tmp = []
+        for i in range(5):
+            tmp.append(mAP[distortions.index(dis) * 5 + i])
+        dic[dis] = [sum(tmp) / len(tmp)]
+        if dis in distortions[:15]:
+            all_tmp += dic[dis][0]
+    
+    dic['mean_corrupted_AP'] = [all_tmp / 15]
+    dic['rAP'] = dic['mean_corrupted_AP'][0] / dic['clean_mAP'][0]
+
+    dataframe = pd.DataFrame(dic)
+    columns = ['clean_mAP', 'mean_corrupted_AP', 'rAP'] + distortions 
+    dataframe.to_csv(final_output_dir + '/' + exp_id + ".csv", index=False,sep=',', columns=columns)
+
+
+def get_final_results_mpii(mean, distortions, final_output_dir, exp_id,mode='td'):
+    # if mode == 'td':
+    #     keyword = '| TopDown |'
+    # elif mode == 'bu':
+    #     keyword = '| BottomUp |'
+
+    dic = {}
+    # log_dir = final_output_dir + '/' + exp_id + '.log'
+    # lines = [_.strip() for _ in open(log_dir, 'r').readlines()]
+    # mean = []
+    # for line in lines:
+    #     if keyword in line:
+    #         mean.append(float(line.split('| ')[9].strip()))
+
+    assert len(mean) == 96, 'Result length'
+    
+    dic['clean_mean'] = [round(mean.pop(0),3)]
+
+    print(mean)
+
+    all_tmp = 0
+    for dis in distortions:
+        tmp = []
+        for i in range(5):
+            tmp.append(mean[distortions.index(dis) * 5 + i])
+        dic[dis] = [round(sum(tmp) / len(tmp),3)]
+        if dis in distortions[:15]:
+            all_tmp += dic[dis][0]
+    
+    dic['mean_corrupted_mean'] = [round(all_tmp / 15,3)]
+    dic['rmean'] = round(dic['mean_corrupted_mean'][0] / dic['clean_mean'][0],3)
+
+    dataframe = pd.DataFrame(dic)
+    columns = ['clean_mean', 'mean_corrupted_mean', 'rmean'] + distortions 
+    dataframe.to_csv(final_output_dir + '/' + exp_id + ".csv", index=False,sep=',', columns=columns)
 
 if __name__ == '__main__':
     main()
