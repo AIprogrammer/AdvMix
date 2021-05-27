@@ -58,17 +58,17 @@ sh scripts/test.sh mpii
 |   Method | Arch               | Input size | AP<sup>*</sup>  |  mPC   |   rPC |
 |----------|--------------------|------------|--------|--------|-------|
 | Standard |      ResNet_50     |    256x192 | 70.4   |   47.8 | 67.9  |
-|  AdvMix  |      ResNet_50     |    256x192 | 70.1   |   50.1 | 71.5  |
+|  AdvMix  |      ResNet_50     |    256x192 | 70.1   |   **50.1** | **71.5**  |
 | Standard |     ResNet_101     |    256x192 | 71.4   |   49.6 | 69.5  |
-|  AdvMix  |     ResNet_101     |    256x192 | 71.3   |   52.3 | 73.3  |
+|  AdvMix  |     ResNet_101     |    256x192 | 71.3   |   **52.3** | **73.3**  |
 | Standard |     ResNet_152     |    256x192 | 72.0   |   50.9 | 70.7  |
-|  AdvMix  |     ResNet_152     |    256x192 | 72.3   |   53.2 | 73.6  |
+|  AdvMix  |     ResNet_152     |    256x192 | 72.3   |   **53.2** | **73.6**  |
 | Standard |     HRNet_W32      |    256x192 | 74.4   |   53.0 | 71.3  |
-|  AdvMix  |     HRNet_W32      |    256x192 | 74.7   |   55.5 | 74.3  |
+|  AdvMix  |     HRNet_W32      |    256x192 | 74.7   |   **55.5** | **74.3**  |
 | Standard |     HRNet_W48      |    256x192 | 75.1   |   53.7 | 71.6  |
-|  AdvMix  |     HRNet_W48      |    256x192 | 75.4   |   57.1 | 75.7  |
+|  AdvMix  |     HRNet_W48      |    256x192 | 75.4   |   **57.1** | **75.7**  |
 | Standard |     HrHRNet_W32    |    512x512 | 67.1   |   39.9 | 59.4  |
-|  AdvMix  |     HrHRNet_W32    |    512x512 | 68.3   |   45.4 | 66.5  |
+|  AdvMix  |     HrHRNet_W32    |    512x512 | 68.3   |   **45.4** | **66.5**  |
 
 
 Comparisons between standard training and AdvMix on COCO-C. For top-down approaches, results are obtained with detected bounding boxes of [HRNet](https://github.com/leoxiaobin/deep-high-resolution-net.pytorch/). We see that mPC and rPC are greatly improved, whilst clean performance AP<sup>*</sup> can be preserved
