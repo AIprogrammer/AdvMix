@@ -26,7 +26,7 @@ class MPIIDataset(JointsDataset):
     def __init__(self, cfg, args, root, image_set, is_train, transform=None):
         super().__init__(cfg, args, root, image_set, is_train, transform)
 
-        ### add paramters for test robustness
+        # add paramters for test robustness
         self.args = args
         self.test_robust = cfg.TEST.TEST_ROBUST
         self.corruption_type = cfg.TEST.CORRUPTION_TYPE
@@ -169,7 +169,6 @@ class MPIIDataset(JointsDataset):
                                           jnt_visible)
         PCKh = np.divide(100.*np.sum(less_than_threshold, axis=1), jnt_count)
 
-        # save
         rng = np.arange(0, 0.5+0.01, 0.01)
         pckAll = np.zeros((len(rng), 16))
 

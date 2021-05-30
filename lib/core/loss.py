@@ -36,12 +36,12 @@ class JointsMSELoss(nn.Module):
         target_weight = tofloat(target_weight)
 
         if output.dim() == 4:
-            heatmaps_pred = output.reshape((batch_size, num_joints, -1)).split(1, 1)  # size of split, dim
+            heatmaps_pred = output.reshape((batch_size, num_joints, -1)).split(1, 1)
             heatmaps_gt = target.reshape((batch_size, num_joints, -1)).split(1, 1)
         
         else:
-            heatmaps_pred = output # bct, 17, 2
-            heatmaps_gt = target # bct, 17,2
+            heatmaps_pred = output
+            heatmaps_gt = target
         
         loss = 0
 

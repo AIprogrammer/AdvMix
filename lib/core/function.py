@@ -19,7 +19,6 @@ from core.evaluate import accuracy
 from core.inference import get_final_preds, get_final_preds_using_softargmax, SoftArgmax2D
 from utils.transforms import flip_back, tofloat, coord_norm, inv_coord_norm, _tocopy, _tocuda
 from utils.vis import save_debug_images
-import dsntnn
 import torch.nn as nn
 from tqdm import tqdm
 import torch.nn.functional as F

@@ -20,26 +20,25 @@ from core.inference import get_max_preds
 
 
 def tensor2im(input_image, imtype=np.uint8):
-    """"将tensor的数据类型转成numpy类型，并反归一化.
-
-    Parameters:
-        input_image (tensor) --  输入的图像tensor数组
-        imtype (type)        --  转换后的numpy的数据类型
+    """
+    Args:
+        input_image (tensor)
+        imtype (type)
     """
     mean = [0.485,0.456,0.406]
     std = [0.229,0.224,0.225]
     if not isinstance(input_image, np.ndarray):
-        if isinstance(input_image, torch.Tensor):  # get the data from a variable
+        if isinstance(input_image, torch.Tensor):
             image_tensor = input_image.data
         else:
             return input_image
-        image_numpy = image_tensor.cpu().float().numpy()  # convert it into a numpy array
-        if image_numpy.shape[0] == 1:  # grayscale to RGB
+        image_numpy = image_tensor.cpu().float().numpy()
+        if image_numpy.shape[0] == 1:
             image_numpy = np.tile(image_numpy, (3, 1, 1))
         for i in range(len(mean)):
             image_numpy[i] = image_numpy[i] * std[i] + mean[i]
         image_numpy = image_numpy * 255
-        image_numpy = np.transpose(image_numpy, (1, 2, 0))  # post-processing: tranpose and scaling
+        image_numpy = np.transpose(image_numpy, (1, 2, 0))
     else:
         image_numpy = input_image
     return image_numpy.astype(imtype)
@@ -48,20 +47,15 @@ def tensor2im(input_image, imtype=np.uint8):
 def save_batch_image_with_joints(batch_image, batch_joints, batch_joints_vis,
                                  file_name, nrow=8, padding=2):
     
-    '''
-    batch_image: [batch_size, channel, height, width]
-    batch_joints: [batch_size, num_joints, 3],
-    batch_joints_vis: [batch_size, num_joints, 1],
-    }
-    '''
-
+    """
+    Args:
+        batch_image: [batch_size, channel, height, width]
+        batch_joints: [batch_size, num_joints, 3],
+        batch_joints_vis: [batch_size, num_joints, 1],
+    """
     grid = torchvision.utils.make_grid(batch_image, nrow, padding, False)
     ndarr = tensor2im(grid)
     ndarr = ndarr.copy()
-
-    # grid = torchvision.utils.make_grid(batch_image, nrow, padding, True)
-    # ndarr = grid.mul(255).clamp(0, 255).byte().permute(1, 2, 0).cpu().numpy()
-    # ndarr = ndarr.copy()
 
     nmaps = batch_image.size(0)
     xmaps = min(nrow, nmaps)
@@ -77,7 +71,6 @@ def save_batch_image_with_joints(batch_image, batch_joints, batch_joints_vis,
             joints_vis = batch_joints_vis[k]
 
             for joint, joint_vis in zip(joints, joints_vis):
-                # by grid coordinate; x horizontal
                 joint[0] = x * width + padding + joint[0]
                 joint[1] = y * height + padding + joint[1]
                 if joint_vis[0]:
@@ -88,11 +81,12 @@ def save_batch_image_with_joints(batch_image, batch_joints, batch_joints_vis,
 
 def save_batch_heatmaps(batch_image, batch_heatmaps, file_name,
                         normalize=True, coord=None):
-    '''
-    batch_image: [batch_size, channel, height, width]
-    batch_heatmaps: ['batch_size, num_joints, height, width]
-    file_name: saved file name
-    '''
+    """
+    Args:
+        batch_image: [batch_size, channel, height, width]
+        batch_heatmaps: ['batch_size, num_joints, height, width]
+        file_name: saved file name
+    """
     if normalize:
         batch_image = batch_image.clone()
         min = float(batch_image.min())
@@ -105,13 +99,11 @@ def save_batch_heatmaps(batch_image, batch_heatmaps, file_name,
     heatmap_height = batch_heatmaps.size(2)
     heatmap_width = batch_heatmaps.size(3)
 
-    # H,W,C
     grid_image = np.zeros((batch_size*heatmap_height,
                            (num_joints+1)*heatmap_width,
                            3),
                           dtype=np.uint8)
     if coord is None:
-        # only on the heatmaps
         preds, maxvals = get_max_preds(batch_heatmaps.detach().cpu().numpy())
     else:
         preds = coord
@@ -148,13 +140,12 @@ def save_batch_heatmaps(batch_image, batch_heatmaps, file_name,
             grid_image[height_begin:height_end, width_begin:width_end, :] = \
                 masked_image
 
-        grid_image[height_begin:height_end, 0:heatmap_width, :] = resized_image # cv2.circle
+        grid_image[height_begin:height_end, 0:heatmap_width, :] = resized_image
 
     cv2.imwrite(file_name, grid_image)
 
 
     
-
 def save_debug_images(config, input, meta, target, joints_pred, output,
                       prefix, coord=None):
     if not config.DEBUG.DEBUG:
@@ -175,7 +166,6 @@ def save_debug_images(config, input, meta, target, joints_pred, output,
             input, target, '{}_hm_gt.jpg'.format(prefix)
         )
     # normalized
-    
     if config.DEBUG.SAVE_HEATMAPS_PRED:
         if isinstance(output, list) and len(output) > 1:
             save_batch_heatmaps(

@@ -33,18 +33,15 @@ def get_max_preds(batch_heatmaps):
     width = batch_heatmaps.shape[3]
     heatmaps_reshaped = batch_heatmaps.reshape((batch_size, num_joints, -1))
     idx = np.argmax(heatmaps_reshaped, 2)
-    maxvals = np.amax(heatmaps_reshaped, 2) # max prob score
+    maxvals = np.amax(heatmaps_reshaped, 2)
 
     maxvals = maxvals.reshape((batch_size, num_joints, 1))
     idx = idx.reshape((batch_size, num_joints, 1))
 
     preds = np.tile(idx, (1, 1, 2)).astype(np.float32)
-
-    # tech: get the coord based on argmax of hm
-    preds[:, :, 0] = (preds[:, :, 0]) % width  # x
-    preds[:, :, 1] = np.floor((preds[:, :, 1]) / width) # y
+    preds[:, :, 0] = (preds[:, :, 0]) % width
+    preds[:, :, 1] = np.floor((preds[:, :, 1]) / width)
     
-    # maxvals exclude [0,0]
     pred_mask = np.tile(np.greater(maxvals, 0.0), (1, 1, 2))
     pred_mask = pred_mask.astype(np.float32)
 
@@ -57,9 +54,7 @@ def get_final_preds(config, args, batch_heatmaps, center, scale, cal_hm_coord=Tr
     if cal_hm_coord:
         coords, maxvals = get_max_preds(batch_heatmaps)
     else:
-        # while using dsntnn or fc_coord
         coords = coord
-        # maybe the maxvals is not reasonable when using fc_coord
         _, maxvals = get_max_preds(batch_heatmaps)
     
     heatmap_height = batch_heatmaps.shape[2]

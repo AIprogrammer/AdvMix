@@ -71,13 +71,13 @@ def accuracy(outputs, target, hm_type='gaussian', thr=0.5, args=None, cfg=None):
         h = outputs.shape[2] # y
         w = outputs.shape[3] # x
 
-    else: # output the correspinding coord of small heatmaps
+    else:
         assert outputs[0].ndim == 3, 'the output coord must be 3 dims'
         pred = outputs[0]
         pred = inv_coord_norm(pred, cfg, args).clone().detach().cpu().numpy()
         target, _ = get_max_preds(target[-1])
-        h = outputs[-1].shape[2] # y
-        w = outputs[-1].shape[3] # x
+        h = outputs[-1].shape[2]
+        w = outputs[-1].shape[3]
 
     norm = np.ones((pred.shape[0], 2)) * np.array([h, w]) / 10
 

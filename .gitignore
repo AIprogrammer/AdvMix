@@ -20,4 +20,6 @@ __pycache__/
 # debug
 /scripts/debug.sh
 /scripts/debug_test.sh
+/scripts/make_datasets_local.sh
 /experiments/debug.yaml
+/tools/make_datasets_local.py

@@ -26,7 +26,7 @@ def flip_back(output_flipped, matched_parts, args=None, cfg=None, dim=None):
     # flip x,y
     else:
         output_flipped = inv_coord_norm(output_flipped, cfg, args)
-        if args.reg_coord: # tensor broadcast
+        if args.reg_coord:
             output_flipped[...,0] = cfg.MODEL.IMAGE_SIZE[0] - 1 - output_flipped[...,0] 
         else:
             output_flipped[...,0] = dim[3] - 1 - output_flipped[...,0]
@@ -57,7 +57,7 @@ def fliplr_joints(joints, joints_vis, width, matched_parts):
 
     return joints*joints_vis, joints_vis
 
-### affine transformation : according to ...; transform back
+
 def transform_preds(coords, center, scale, output_size):
     target_coords = np.zeros(coords.shape)
     trans = get_affine_transform(center, scale, 0, output_size, inv=1)
@@ -106,7 +106,7 @@ def affine_transform(pt, t):
     new_pt = np.dot(t, new_pt)
     return new_pt[:2]
 
-### the same rule: [1,0] [3,0] ==> [3,-2]  square triangle
+# the same rule: [1,0] [3,0] ==> [3,-2]  square triangle
 def get_3rd_point(a, b):
     direct = a - b
     return b + np.array([-direct[1], direct[0]], dtype=np.float32)
@@ -136,7 +136,6 @@ def crop(img, center, scale, output_size, rot=0):
 def tofloat(x):
 
     if isinstance(x, np.ndarray):
-        # return x.astype(np.float32)
         return torch.Tensor(x).cuda()
     
     if x.dtype == torch.float64 or x.dtype == torch.double:

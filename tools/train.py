@@ -46,7 +46,6 @@ def main():
     args = parse_args()
     update_config(cfg, args)
     
-    ### differ from the official args
     logger, final_output_dir, tb_log_dir = create_logger(
         args, cfg, args.cfg, 'train')
 
@@ -95,7 +94,6 @@ def main():
         (1, 3, cfg.MODEL.IMAGE_SIZE[1], cfg.MODEL.IMAGE_SIZE[0])
     )
     
-    ## bug in tensorboardX
     try:
         writer_dict['writer'].add_graph(model, (dump_input, ))
     except:
@@ -281,11 +279,6 @@ def main():
             optimizer_G, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
             last_epoch=last_epoch_G
         )
-
-    # name_values, perf_indicator = validate(
-    #     cfg, args, valid_loader, valid_dataset, model, criterion,
-    #     final_output_dir, tb_log_dir, writer_dict
-    # )
 
     for epoch in range(begin_epoch, cfg.TRAIN.END_EPOCH):
         lr_scheduler.step()

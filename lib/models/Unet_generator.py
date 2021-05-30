@@ -79,7 +79,7 @@ class UnetBlock(nn.Module):
     def forward(self, x):
         if self.outermost:
             return self.model(x)
-        else:   # add skip connections
+        else:
             return torch.cat([x, self.model(x)], 1)
 
 class UnetGenerator(nn.Module):
@@ -101,7 +101,7 @@ class UnetGenerator(nn.Module):
 
         super(UnetGenerator, self).__init__()
         unet_block = UnetBlock(ngf * 8, ngf * 8, input_nc=None, submodule=None, norm_layer=norm_layer, innermost=True, with_tanh=with_tanh)  # add the innermost layer
-        for i in range(num_downs - 5):          # add intermediate layers with ngf * 8 filters
+        for i in range(num_downs - 5):
             unet_block = UnetBlock(ngf * 8, ngf * 8, input_nc=None, submodule=unet_block, norm_layer=norm_layer, use_dropout=use_dropout, with_tanh=with_tanh)
         unet_block = UnetBlock(ngf * 4, ngf * 8, input_nc=None, submodule=unet_block, norm_layer=norm_layer, with_tanh=with_tanh)
         unet_block = UnetBlock(ngf * 2, ngf * 4, input_nc=None, submodule=unet_block, norm_layer=norm_layer, with_tanh=with_tanh)

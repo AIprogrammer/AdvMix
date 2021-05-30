@@ -37,7 +37,7 @@ import pandas as pd
 
 def val_model_init():
 
-    ### adjust the gpu_ids
+    # adjust the gpu_ids
     args = parse_args()
     update_config(cfg, args)
 
@@ -59,12 +59,10 @@ def val_model_init():
 
 def val(distortion_name, severity, model):
     args = parse_args()
-    ### loop for 15 * 5
     args.corruption_type = distortion_name
     args.severity = severity
 
     update_config(cfg, args)
-
 
     exp_id = args.exp_id
     which_dataset = cfg.DATASET.DATASET
@@ -73,7 +71,6 @@ def val(distortion_name, severity, model):
         cfg, args.cfg, 'valid')
 
     logger.info(pprint.pformat(args))
-    # logger.info(cfg)
 
     if cfg.TEST.MODEL_FILE:
         logger.info('=> loading model from {}'.format(cfg.TEST.MODEL_FILE))
@@ -116,7 +113,7 @@ def val(distortion_name, severity, model):
                         final_output_dir, tb_log_dir)
     
 
-    ### recording overall results
+    # recording overall results
     overall_dir = os.path.join(final_output_dir, 'robust_C.val')
     record = open(os.path.join(final_output_dir, 'robust_C.val'), 'a')
     record.write(distortion_name + '_' + str(severity) + ':' + '\t')

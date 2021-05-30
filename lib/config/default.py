@@ -40,8 +40,8 @@ _C.MODEL.PRETRAINED = ''
 _C.MODEL.NUM_JOINTS = 17
 _C.MODEL.TAG_PER_JOINT = True
 _C.MODEL.TARGET_TYPE = 'gaussian'
-_C.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
-_C.MODEL.HEATMAP_SIZE = [64, 64]  # width * height, ex: 24 * 32
+_C.MODEL.IMAGE_SIZE = [256, 256]
+_C.MODEL.HEATMAP_SIZE = [64, 64]
 _C.MODEL.SIGMA = 2
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
@@ -110,7 +110,7 @@ _C.TEST.SHIFT_HEATMAP = False
 
 _C.TEST.USE_GT_BBOX = False
 
-### test robustness
+# test robustness
 _C.TEST.TEST_ROBUST = False
 _C.TEST.CORRUPTION_TYPE = ''
 
@@ -139,10 +139,10 @@ _C.DEBUG.SAVE_HEATMAPS_GT = False
 _C.DEBUG.SAVE_HEATMAPS_PRED = False
 
 
-### update config by args
+# update config by args
 def update_config(cfg, args):
     cfg.defrost()
-    ### merge and update args
+    # merge and update args
     cfg.merge_from_file(args.cfg)
     cfg.merge_from_list(args.opts)
 
@@ -165,22 +165,17 @@ def update_config(cfg, args):
         cfg.DATA_DIR, cfg.DATASET.ROOT
     )
 
-    ### define root_c while coco or mpii
-    
     if cfg.DATASET.DATASET == 'coco':
         cfg.DATASET.ROOT_C = 'data/coco-C'
     else:
         cfg.DATASET.ROOT_C = 'data/mpii-C'
-
-    ### corruptions data root
+    
     cfg.DATASET.ROOT_C = os.path.join(
         cfg.DATA_DIR, cfg.DATASET.ROOT_C
     )
-
     cfg.MODEL.PRETRAINED = os.path.join(
         cfg.DATA_DIR, cfg.MODEL.PRETRAINED
     )
-
     if cfg.TEST.MODEL_FILE:
         cfg.TEST.MODEL_FILE = os.path.join(
             cfg.DATA_DIR, cfg.TEST.MODEL_FILE

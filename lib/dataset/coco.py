@@ -27,68 +27,29 @@ logger = logging.getLogger(__name__)
 
 
 class COCODataset(JointsDataset):
-    '''
-    "keypoints": {
-        0: "nose",
-        1: "left_eye",
-        2: "right_eye",
-        3: "left_ear",
-        4: "right_ear",
-        5: "left_shoulder",
-        6: "right_shoulder",
-        7: "left_elbow",
-        8: "right_elbow",
-        9: "left_wrist",
-        10: "right_wrist",
-        11: "left_hip",
-        12: "right_hip",
-        13: "left_knee",
-        14: "right_knee",
-        15: "left_ankle",
-        16: "right_ankle"
-    },
-	"skeleton": [
-        [16,14],[14,12],[17,15],[15,13],[12,13],[6,12],[7,13], [6,7],[6,8],
-        [7,9],[8,10],[9,11],[2,3],[1,2],[1,3],[2,4],[3,5],[4,6],[5,7]]
-    '''
     def __init__(self, cfg, args ,root, image_set, is_train, transform=None):
         super().__init__(cfg, args, root, image_set, is_train, transform)
-        '''
-        BBOX_THRE: 1.0
-        IMAGE_THRE: 0.0
-        IN_VIS_THRE: 0.2
-        MODEL_FILE: ''
-        NMS_THRE: 1.0
-        OKS_THRE: 0.9
-        '''
         self.args = args
         self.nms_thre = cfg.TEST.NMS_THRE
         self.image_thre = cfg.TEST.IMAGE_THRE
         self.soft_nms = cfg.TEST.SOFT_NMS
         self.oks_thre = cfg.TEST.OKS_THRE
-        self.in_vis_thre = cfg.TEST.IN_VIS_THRE  # for score threshold
-
-        ### 100000 samples
+        self.in_vis_thre = cfg.TEST.IN_VIS_THRE
         self.bbox_file = cfg.TEST.COCO_BBOX_FILE
-        self.use_gt_bbox = cfg.TEST.USE_GT_BBOX
-        ### resize to certain image size [192,256]  
+        self.use_gt_bbox = cfg.TEST.USE_GT_BBOX 
         self.image_width = cfg.MODEL.IMAGE_SIZE[0]
         self.image_height = cfg.MODEL.IMAGE_SIZE[1]
-        ### 96 / 128
         self.aspect_ratio = self.image_width * 1.0 / self.image_height
         self.pixel_std = 200
 
-        ### add paramters for test robustness
+        # add paramters for test robustness
         self.test_robust = cfg.TEST.TEST_ROBUST
         self.corruption_type = cfg.TEST.CORRUPTION_TYPE
         self.root_c = cfg.DATASET.ROOT_C
         self.severity = cfg.TEST.SEVERITY
-        ### for dbug: mini_coco
         self.mini_coco = cfg.DATASET.MINI_COCO
-        
         self.coco = COCO(self._get_ann_file_keypoint())
 
-        # deal with class names
         cats = [cat['name']
                 for cat in self.coco.loadCats(self.coco.getCatIds())]
         self.classes = ['__background__'] + cats
@@ -113,7 +74,6 @@ class COCODataset(JointsDataset):
         self.upper_body_ids = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
         self.lower_body_ids = (11, 12, 13, 14, 15, 16)
 
-        ### more weight on elbow, wrist, knee, ankle
         self.joints_weight = np.array(
             [
                 1., 1., 1., 1., 1., 1., 1., 1.2, 1.2,
@@ -157,17 +117,14 @@ class COCODataset(JointsDataset):
 
     def _get_db(self):
         if self.is_train or self.use_gt_bbox:
-            # use ground truth bbox
             gt_db = self._load_coco_keypoint_annotations()
         else:
-            # use bbox from detection; the number of samples ==> ~100000
             if self.mini_coco:
                 gt_db = self._load_coco_keypoint_annotations()
             else:
                 gt_db = self._load_coco_person_detection_results()
         return gt_db
 
-    # bbox, image_id, score
     def _load_coco_keypoint_annotations(self):
         """ ground truth bbox and keypoints """
         gt_db = []
@@ -193,7 +150,6 @@ class COCODataset(JointsDataset):
         annIds = self.coco.getAnnIds(imgIds=index, iscrowd=False)
         objs = self.coco.loadAnns(annIds)
 
-        # sanitize bboxes
         valid_objs = []
         for obj in objs:
             x, y, w, h = obj['bbox']
@@ -212,13 +168,11 @@ class COCODataset(JointsDataset):
             if cls != 1:
                 continue
 
-            # ignore objs without keypoints annotation
             if max(obj['keypoints']) == 0:
                 continue
 
             joints_3d = np.zeros((self.num_joints, 3), dtype=np.float)
             joints_3d_vis = np.zeros((self.num_joints, 3), dtype=np.float)
-            ### note: obj index [17 *3 ==> x,y,vis]
             for ipt in range(self.num_joints):
                 joints_3d[ipt, 0] = obj['keypoints'][ipt * 3 + 0]
                 joints_3d[ipt, 1] = obj['keypoints'][ipt * 3 + 1]
@@ -267,7 +221,7 @@ class COCODataset(JointsDataset):
 
     def image_path_from_index(self, index):
         """ example: images / train2017 / 000000119993.jpg """
-        ### testing the robustnss
+        # testing the robustnss
         if self.test_robust and self.corruption_type != 'clean':
             file_name = self.corruption_type + '/' + str(self.severity) + '/' + '%012d.jpg' % index
         else:
@@ -279,8 +233,7 @@ class COCODataset(JointsDataset):
         prefix = 'test2017' if 'test' in self.image_set else self.image_set
 
         data_name = prefix + '.zip@' if self.data_format == 'zip' else prefix
-        
-        ### testing the robustness
+
         if self.test_robust and self.corruption_type != 'clean':
             image_path = os.path.join(
                 self.root_c, file_name)
@@ -322,7 +275,6 @@ class COCODataset(JointsDataset):
 
             num_boxes = num_boxes + 1
 
-            ### bounding boxes to center scale 
             center, scale = self._box2cs(box)
             joints_3d = np.zeros((self.num_joints, 3), dtype=np.float)
             joints_3d_vis = np.ones(
@@ -364,7 +316,6 @@ class COCODataset(JointsDataset):
                     self.image_set, rank)
             )
 
-        # person x (keypoints)
         _kpts = []
 
         for idx, kpt in enumerate(preds):
@@ -377,39 +328,31 @@ class COCODataset(JointsDataset):
                 'score': all_boxes[idx][5],
                 'image': image_idx
             })
-        # image x person x (keypoints)
         kpts = defaultdict(list)
-        ### per image may contains many people = >multi person by image id {'image_id': kpt1_dict, kpt_dict}
         for kpt in _kpts:
-            kpts[kpt['image']].append(kpt) # len(images)  dict1, dict2 by image_id
+            kpts[kpt['image']].append(kpt)
 
-        # rescoring and oks nms
         num_joints = self.num_joints
         in_vis_thre = self.in_vis_thre
-        oks_thre = self.oks_thre # .9
+        oks_thre = self.oks_thre
         oks_nmsed_kpts = []
         for img in kpts.keys():
-            # per img / per obj for single person
             img_kpts = kpts[img]
             for n_p in img_kpts:
-                # per obj in single img
                 box_score = n_p['score']
                 kpt_score = 0
                 valid_num = 0
                 for n_jt in range(0, num_joints):
-                    t_s = n_p['keypoints'][n_jt][2] # maxvals
+                    t_s = n_p['keypoints'][n_jt][2]
                     if t_s > in_vis_thre:
                         kpt_score = kpt_score + t_s
                         valid_num = valid_num + 1
                 if valid_num != 0:
                     kpt_score = kpt_score / valid_num
                 
-                # rescoring avg_point_score
                 n_p['score'] = kpt_score * box_score
 
-            # recheck the nms
             if self.soft_nms:
-                # rank by score
                 keep = soft_oks_nms(
                     [img_kpts[i] for i in range(len(img_kpts))],
                     oks_thre
@@ -421,7 +364,7 @@ class COCODataset(JointsDataset):
                 )
 
             if len(keep) == 0:
-                oks_nmsed_kpts.append(img_kpts) # why
+                oks_nmsed_kpts.append(img_kpts)
             else:
                 oks_nmsed_kpts.append([img_kpts[_keep] for _keep in keep])
  
@@ -446,7 +389,6 @@ class COCODataset(JointsDataset):
             }
             for cls_ind, cls in enumerate(self.classes) if not cls == '__background__'
         ]
-        ### all categories dict
         results = self._coco_keypoint_results_one_category_kernel(data_pack[0])
         logger.info('=> writing results json to %s' % res_file)
         with open(res_file, 'w') as f:
@@ -467,7 +409,6 @@ class COCODataset(JointsDataset):
         cat_id = data_pack['cat_id']
         keypoints = data_pack['keypoints']
         cat_results = []
-        # [per_img[per_obj]]
         for img_kpts in keypoints:
             if len(img_kpts) == 0:
                 continue
@@ -477,13 +418,11 @@ class COCODataset(JointsDataset):
             key_points = np.zeros(
                 (_key_points.shape[0], self.num_joints * 3), dtype=np.float
             )
-            # convert to bct, 17 *3
             for ipt in range(self.num_joints):
                 key_points[:, ipt * 3 + 0] = _key_points[:, ipt, 0]
                 key_points[:, ipt * 3 + 1] = _key_points[:, ipt, 1]
-                key_points[:, ipt * 3 + 2] = _key_points[:, ipt, 2]  # keypoints score.
+                key_points[:, ipt * 3 + 2] = _key_points[:, ipt, 2]
 
-            # by obj
             result = [
                 {
                     'image_id': img_kpts[k]['image'],
@@ -500,7 +439,6 @@ class COCODataset(JointsDataset):
         return cat_results
 
     def _do_python_keypoint_eval(self, res_file, res_folder):
-        # load what kind of file
         coco_dt = self.coco.loadRes(res_file)
         coco_eval = COCOeval(self.coco, coco_dt, 'keypoints')
         coco_eval.params.useSegm = None
@@ -508,9 +446,7 @@ class COCODataset(JointsDataset):
         coco_eval.accumulate()
         coco_eval.summarize()
 
-        ### coco evaluate names
         stats_names = ['AP', 'Ap .5', 'AP .75', 'AP (M)', 'AP (L)', 'AR', 'AR .5', 'AR .75', 'AR (M)', 'AR (L)']
-
         info_str = []
         for ind, name in enumerate(stats_names):
             info_str.append((name, coco_eval.stats[ind]))
