@@ -20,7 +20,6 @@ class ImageNetPolicy(object):
     """
     def __init__(self, fillcolor=(128, 128, 128)):
         self.policies = [
-            SubPolicy(0.6, "solarize", 5, 0.6, "autocontrast", 5, fillcolor),
             SubPolicy(0.8, "equalize", 8, 0.6, "equalize", 3, fillcolor),
             SubPolicy(0.6, "posterize", 7, 0.6, "posterize", 6, fillcolor),
             SubPolicy(0.4, "equalize", 7, 0.2, "solarize", 4, fillcolor),
@@ -31,7 +30,6 @@ class ImageNetPolicy(object):
             SubPolicy(0.6, "invert", 4, 1.0, "equalize", 8, fillcolor),
             SubPolicy(0.4, "sharpness", 7, 0.6, "invert", 8, fillcolor),
             SubPolicy(0.4, "equalize", 7, 0.2, "solarize", 4, fillcolor),
-            SubPolicy(0.6, "solarize", 5, 0.6, "autocontrast", 5, fillcolor),
             SubPolicy(0.6, "invert", 4, 1.0, "equalize", 8, fillcolor),
             SubPolicy(0.8, "equalize", 8, 0.6, "equalize", 3, fillcolor)
         ]
