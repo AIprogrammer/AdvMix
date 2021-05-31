@@ -35,6 +35,8 @@ sh scripts/make_dataset.sh
 ### Benchmark results
 ![benchmark_results](./figures/benchmarking_results.png)
 
+**Note: There may be small gap between the results by [Evaluation]((#Evaluation)) and results in our paper due to randomness of operations in package 'imagecorruptions'**
+
 ## AdvMix
 ![AdvMix](./figures/AdvMix.jpg)
 ### Training
@@ -47,7 +49,7 @@ sh scripts/train.sh mpii
 ```
 sh scripts/train.sh coco
 ```
-
+<a name="Evaluation"></a>
 ### Evaluation
 ```
 sh scripts/test.sh coco
