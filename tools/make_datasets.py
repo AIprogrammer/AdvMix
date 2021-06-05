@@ -11,6 +11,8 @@ from imagecorruptions import corrupt, get_corruption_names
 
 parser = argparse.ArgumentParser(description='Apply different corruption types to official validation dataset, e.g., COCO, MPII, OCHuman, etc.',
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('--batch_size', type=int, default=64, help='Batch size for processing images.')
+parser.add_argument('--num_workers', type=int, default=8, help='Multi-process data loading.')
 parser.add_argument('--root_dir', type=str, default="./data", help='Root directory of data.')
 parser.add_argument('--data_dir', type=str, help='Directroy of images.')
 parser.add_argument('--dataset', type=str, default="COCO", help='Dataset to process.')
@@ -35,6 +37,7 @@ class make_data(Dataset):
         image = np.asarray(Image.open(img))
         for corruption in get_corruption_names('all'):
             for severity in range(5):
+                np.random.seed(1)
                 corrupted = corrupt(image, corruption_name=corruption, severity=severity+1)
                 corrupted_path = os.path.join(self.root_dir, self.dataset + '-C', corruption, str(severity), os.path.basename(img))
                 if not os.path.exists(os.path.dirname(corrupted_path)):
@@ -48,6 +51,6 @@ if __name__ == '__main__':
     d_dataset = make_data(root_dir, data_dir, which_dataset)
     print("To process {} images. ".format(len(d_dataset)))
     distorted_dataset_loader = torch.utils.data.DataLoader(
-            d_dataset, batch_size=64, shuffle=False, num_workers=8)
+            d_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
     for _ in tqdm(distorted_dataset_loader): continue
