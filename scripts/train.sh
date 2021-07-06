@@ -21,7 +21,6 @@ python tools/train.py \
     --advmix \
     --sample_times 3 \
     --joints_num $num_joints \
-    --kd \
     --kd_mseloss \
     --alpha 0.5 \
     TEST.MODEL_FILE $checkpoint \
