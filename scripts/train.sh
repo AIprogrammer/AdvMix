@@ -22,6 +22,6 @@ python tools/train.py \
     --sample_times 3 \
     --joints_num $num_joints \
     --kd_mseloss \
-    --alpha 0.5 \
+    --alpha 0.1 \
     TEST.MODEL_FILE $checkpoint \
     TEST.USE_GT_BBOX True

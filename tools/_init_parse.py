@@ -144,7 +144,7 @@ def parse_args():
 
     parser.add_argument('--alpha',
                         type=float,
-                        default=0.5)
+                        default=0.1)
 
     # random corruption
     parser.add_argument('--random_corruption',
